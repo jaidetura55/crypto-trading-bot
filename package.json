@@ -9,6 +9,7 @@
   "author": "Paddy Curé",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.21.1",
     "ccxt": "^1.50.34",
     "dotenv": "^10.0.0"
   }
