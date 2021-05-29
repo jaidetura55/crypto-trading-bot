@@ -4,13 +4,15 @@
   "description": "The bot that will lose me my cryptocurrency fortune",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
   },
   "author": "Paddy Curé",
   "license": "ISC",
   "dependencies": {
     "axios": "^0.21.1",
     "ccxt": "^1.50.34",
-    "dotenv": "^10.0.0"
+    "dotenv": "^10.0.0",
+    "tulind": "^0.8.18"
   }
 }
