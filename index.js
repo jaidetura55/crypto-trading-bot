@@ -4,9 +4,6 @@ const axios = require("axios")
 const tulind = require("tulind")
 
 
-let fakeAssetBal, fakeBaseBal
-
-
 const tradeConditions = async (data, currentPrice) => {
   const open = data.map(d => d[1])
   const high = data.map(d => d[2])
@@ -46,7 +43,7 @@ const tradeConditions = async (data, currentPrice) => {
     console.log("Error in Bollinger Band or RSI.")
   }
 
-  console.log(bb, rsi[0], currentPrice)
+  // console.log(bb, rsi[0], currentPrice)
 
 
   // Check Bollinger Band params
@@ -77,32 +74,27 @@ const tradeConditions = async (data, currentPrice) => {
 
 
 const tick = async (config, binanceClient) => {
-  const { asset, base, spread, allocation } = config
+  const { asset, base, minAsset, minBase } = config
   const market = `${asset}/${base}`
 
+  // Cancel existing orders
   const orders = await binanceClient.fetchOpenOrders(market)
-  
   orders.forEach(async order => {
     await binanceClient.cancelOrder(order.id, order.symbol)
   })
 
+  // Get prices from CoinGecko for non-exchange specific price
+  // To use a different asset/base pair, change the "ids" parameter in api url
   const results = await Promise.all([
     axios.get("https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd"),
     axios.get("https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=usd")
   ])
+  const marketPrice = results[0].data.binancecoin.usd / results[1].data.tether.usd
 
-  const [ bnb, tether ] = results
-  const marketPrice = bnb.data.binancecoin.usd / tether.data.tether.usd
-
-  const sellPrice = marketPrice * (1 + spread)
-  const buyPrice = marketPrice * (1 - spread)
-
+  // Get balances of asset and base
   const balances = await binanceClient.fetchBalance()
   const assetBalance = balances.free[asset]
   const baseBalance = balances.free[base]
-
-  const sellVolume = assetBalance * allocation
-  const buyVolume = (baseBalance * allocation) / marketPrice
 
   // Time in milliseconds thirty "5min" candles ago (getting 31 because most recent ongoing candle not included)
   const since = binanceClient.milliseconds() - (31 * 300 * 1000)
@@ -116,69 +108,60 @@ const tick = async (config, binanceClient) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  if(action === "buy") {
-    let value = amount * fakeBaseBal
-    fakeAssetBal += value * marketPrice
-    fakeBaseBal -= value
+  // Check minimum allowed balances
+  if(assetBalance * marketPrice <= minAsset) {
     console.log(`
-      Bought ${value / marketPrice}${asset} @ ${marketPrice}
-      ${asset} balance: ${fakeAssetBal} => ${fakeAssetBal * marketPrice}USDT
-      ${base} balance: ${fakeBaseBal}
-      Total Bal: ${(fakeAssetBal * marketPrice) + fakeBaseBal}
+      Insufficient ${asset} balance ...  ${assetBalance}
     `)
   }
+
+  else if(baseBalance <= minBase) {
+    console.log(`
+      Insufficient ${base} balance ...  ${baseBalance}
+    `)
+  }
+
+  else if(action === "buy") {
+    let buyVolume = amount * assetBalance
+    // await binanceClient.createMarketBuyOrder(market, buyVolume)
+    console.log(`
+      Bought ${value / marketPrice}${asset} @ $${marketPrice}
+      Price: $${marketPrice}
+      ${asset} balance: ${assetBalance} ====> (${assetBalance * marketPrice})
+      ${base} balance: ${baseBalance}
+      Total Balance Value: $${(assetBalance * marketPrice) + baseBalance}
+    `)
+  }
+
   else if(action === "sell") {
-    let value = amount * fakeAssetBal * marketPrice
-    fakeAssetBal -= value / marketPrice
-    fakeBaseBal += value
+    let sellVolume = amount * baseBalance
+    // await binanceClient.createMarketSellOrder(market, sellVolume)
     console.log(`
       Sold ${value / marketPrice}${asset} @ $${marketPrice}
-      ${asset} balance: ${fakeAssetBal} => ${fakeAssetBal * marketPrice}USDT
-      ${base} balance: ${fakeBaseBal}
-      Total Bal: ${(fakeAssetBal * marketPrice) + fakeBaseBal}
+      Price: $${marketPrice}
+      ${asset} balance: ${assetBalance} ====> ($${assetBalance * marketPrice})
+      ${base} balance: ${baseBalance}
+      Total Balance Value: $${(assetBalance * marketPrice) + baseBalance}
     `)
   }
-  else console.log(`No action taken.`)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // await binanceClient.createLimitSellOrder(market, sellVolume, sellPrice)
-  // await binanceClient.createLimitBuyOrder(market, buyVolume, buyPrice)
+  else console.log(`
+    No action taken.
+    Price: $${marketPrice}
+    ${asset} balance: ${assetBalance} ====> ($${assetBalance * marketPrice})
+    ${base} balance: ${baseBalance}
+    Total Balance Value: $${(assetBalance * marketPrice) + baseBalance}
+  `)
 }
+
+
 
 const run = () => {
   const config = {
     asset: "BNB",
     base: "USDT",
-    allocation: 0.1,
-    spread: 0.01,
+    minAsset: 90,
+    minBase: 90,
     tickInterval: 300000
   }
 
@@ -186,10 +169,6 @@ const run = () => {
     apiKey: process.env.API_KEY,
     secret: process.env.API_SEC
   })
-
-
-  fakeAssetBal = 0.37
-  fakeBaseBal = 130
 
   tick(config, binanceClient)
   setInterval(tick, config.tickInterval, config, binanceClient)

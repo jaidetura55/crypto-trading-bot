@@ -1,13 +1,22 @@
 ## Cryptocurrency Trading Bot
 
-This is just an experiment, not meant to actually be used.
+:exclamation: :exclamation: WARNING :exclamation: :exclamation:
 
-I will update it in the future as I learn more about technical analysis.
+Do not use this bot, you will lose money.
 
-Here is a start guide anyway:
 
-create a .env file and add API keys.
+### Start guide
+
+create a .env file and add API keys:
+
+```
+API_KEY=""
+API_SEC=""
+```
+
+Then run:
 
 ```bash
+npm install
 npm start
 ```
