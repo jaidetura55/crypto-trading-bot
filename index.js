@@ -51,10 +51,10 @@ const tradeConditions = async (data, currentPrice) => {
     order = order
   }
   else if(currentPrice > bb[0][0]) {
-    order = {action: "sell", amount: 0.05}
+    order = {action: "sell", amount: 0.2}
   }
   else if(currentPrice < bb[2][0]) {
-    order = {action: "buy", amount: 0.05}
+    order = {action: "buy", amount: 0.2}
   }
 
   // Check RSI params
@@ -62,10 +62,10 @@ const tradeConditions = async (data, currentPrice) => {
     order = order
   }
   else if(rsi[0] > 75) {
-    order = {action: "sell", amount: 0.1}
+    order = {action: "sell", amount: 0.25}
   }
   else if(rsi[0] < 25) {
-    order = {action: "buy", amount: 0.1}
+    order = {action: "buy", amount: 0.25}
   }
 
   return order
@@ -123,9 +123,16 @@ const tick = async (config, binanceClient) => {
 
   else if(action === "buy") {
     let buyVolume = amount * assetBalance
-    // await binanceClient.createMarketBuyOrder(market, buyVolume)
+
+    try {
+      await binanceClient.createMarketBuyOrder(market, buyVolume)
+    }
+    catch (err) {
+      console.log(`Error in buy order: ${err}`)
+    }
+
     console.log(`
-      Bought ${value / marketPrice}${asset} @ $${marketPrice}
+      Bought ${buyVolume / marketPrice}${asset} @ $${marketPrice}
       Price: $${marketPrice}
       ${asset} balance: ${assetBalance} ====> (${assetBalance * marketPrice})
       ${base} balance: ${baseBalance}
@@ -134,10 +141,17 @@ const tick = async (config, binanceClient) => {
   }
 
   else if(action === "sell") {
-    let sellVolume = amount * baseBalance
-    // await binanceClient.createMarketSellOrder(market, sellVolume)
+    let sellVolume = amount * baseBalance / marketPrice
+
+    try {
+      await binanceClient.createMarketSellOrder(market, sellVolume)
+    }
+    catch (err) {
+      console.log(`Error in sell order: ${err}`)
+    }
+
     console.log(`
-      Sold ${value / marketPrice}${asset} @ $${marketPrice}
+      Sold ${sellVolume}${asset} @ $${marketPrice}
       Price: $${marketPrice}
       ${asset} balance: ${assetBalance} ====> ($${assetBalance * marketPrice})
       ${base} balance: ${baseBalance}
